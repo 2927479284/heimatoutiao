@@ -3,3 +3,12 @@ server:
 spring:
   application:
     name: leadnews-user
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.200.130:8848 # nacos注册配置中心
+      config:
+        server-addr: 192.168.200.130:8848 # nacos注册配置中心
+        file-extension: yml
+  autoconfigure: #redis在common工程提前导入，第一天不需要使用redis，先排除，否则系统启动会有错误
+    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
