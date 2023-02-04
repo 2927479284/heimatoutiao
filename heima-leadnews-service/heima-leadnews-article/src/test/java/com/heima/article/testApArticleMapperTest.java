@@ -1,4 +1,4 @@
-package com.itcast.article;
+package com.heima.article;
 
 
 import com.heima.article.mapper.ApArticleMapper;
