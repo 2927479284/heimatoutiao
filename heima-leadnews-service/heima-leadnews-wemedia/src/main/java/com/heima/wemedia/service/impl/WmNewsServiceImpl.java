@@ -94,17 +94,14 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         if(StringUtils.isBlank(dto.getTitle()) || StringUtils.isBlank(dto.getContent()) )		 {
             return ResponseResult.errorResult(AppHttpCodeEnum.PARAM_INVALID);
         }
-
         //第二部分：创建或修改文章
         //1.1 复制dto给wmNews
         WmNews wmNews = new WmNews();
         BeanUtils.copyProperties(dto, wmNews);
-
         //1.2 判断如果是自动布局设置布局方式临时为空
         if(dto.getType().equals(WemediaConstants.WM_NEWS_TYPE_AUTO)){
             wmNews.setType(null);
         }
-
         //1.3 处理封面图片，将参数中的图片列表数据转为逗号分割的字符串
         List<String> coverImageList = dto.getImages();
         if(coverImageList!=null && coverImageList.size()>0){
@@ -112,67 +109,35 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
             wmNews.setImages(coverImageStr);
         }
         //1.4 创建或更新文章
-        wmNews.setUserId(ThreadLocalUtil.getUserId());
-        wmNews.setStatus(isSumit);
-        wmNews.setEnable(1);
-        wmNews.setSubmitedTime(new Date());
-        if (wmNews.getId() == null){
-            wmNews.setCreatedTime(new Date());
-            save(wmNews);
-        }else {
-            WmNews byId = getById(wmNews.getId());
-            if (byId == null){
-                return  ResponseResult.errorResult(AppHttpCodeEnum.DATA_NOT_EXIST);
-            }
-            updateById(wmNews);
-            // 删除文章与素材的关系，素材表 一个文章对应n个素材， 通过文章id删除所有关系
-            wmNewsMaterialService.remove(Wrappers.<WmNewsMaterial>lambdaQuery().eq(WmNewsMaterial::getNewsId,wmNews.getId()));
-
+        ResponseResult orUpdateByWmNews = createOrUpdateByWmNews(isSumit,wmNews);
+        if (orUpdateByWmNews !=null){
+            return orUpdateByWmNews;
         }
         //准备：抽取内容的图片列表
-        List<String> imageUrls = new ArrayList<>();
-        String content = dto.getContent();
-        if (StringUtils.isNotBlank(content)){
-            // 文章内容为字符串 "[{},{}]"
-            List<Map> maps = JSON.parseArray(content, Map.class);
-            if (maps != null && maps.size()>0){
-                // 开始获取文章中所有图片
-                for (Map map : maps) {
-                    String type = (String) map.get("type");
-                    if (type.equals("image")){
-                        String imageUrl = (String) map.get("value");// 获得图片地址
-                        imageUrls.add(imageUrl);
-                    }
-                }
-            }
-        }
-
+        List<String> imageUrls = getStrings(dto);
         //第三部分：保存内容图片与文章关系
         // 3.1通过图片url查询对应的素材主键ID
-        if (isSumit.equals(WmNews.Status.SUBMIT.getCode()) && imageUrls.size() >0){
-            List<WmMaterial> list = wmMaterialService.list(Wrappers.<WmMaterial>lambdaQuery()
-                    .in(WmMaterial::getUrl, imageUrls).select(WmMaterial::getId));
-            // 3.2判断查询出来的素材列表与传入的素材列表是否数量匹配（不匹配则代表素材被删除）
-            if (imageUrls.size() != list.size()){
-                return ResponseResult.errorResult(AppHttpCodeEnum.MATERIASL_REFERENCE_FAIL);
-            }
-            // 3.3 获取查询出来的素材list里面对应的主键ID
-            List<Integer> collect = list.stream().map(WmMaterial::getId).collect(Collectors.toList());
-            Integer num = 0;
-            List<WmNewsMaterial> wmNewsMaterials = new ArrayList<>();
-            for (Integer integer : collect) {
-                WmNewsMaterial wmNewsMaterial = new WmNewsMaterial();
-                wmNewsMaterial.setNewsId(wmNews.getId());
-                wmNewsMaterial.setMaterialId(integer);
-                wmNewsMaterial.setType(WemediaConstants.WM_CONTENT_REFERENCE);
-                wmNewsMaterial.setOrd(num);
-                wmNewsMaterials.add(wmNewsMaterial);
-                num++;
-            }
-            wmNewsMaterialService.saveBatch(wmNewsMaterials);
+        ResponseResult extracted = extracted(isSumit, wmNews, imageUrls);
+        if (extracted !=null){
+            return extracted;
         }
-
         //第四部分：保存封面图片与文章关系
+        ResponseResult extracted1 = extracted(dto, isSumit, wmNews, coverImageList);
+        if (extracted1 != null){
+            return extracted1;
+        }
+        return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS);
+    }
+
+    /**
+     * 保存封面图片与文章关系
+     * @param dto
+     * @param isSumit
+     * @param wmNews
+     * @param coverImageList
+     * @return
+     */
+    private ResponseResult extracted(WmNewsDto dto, Integer isSumit, WmNews wmNews, List<String> coverImageList) {
         if (isSumit.equals(WmNews.Status.SUBMIT.getCode())){
             if (Objects.equals(dto.getType(), WemediaConstants.WM_NEWS_TYPE_AUTO)){
 //                List<String> images = dto.getImages();
@@ -193,7 +158,7 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
                 updateById(wmNews);
             }
             // 选择了封面(单图/多图封面模式)
-            if (coverImageList!= null && coverImageList.size()>0){
+            if (coverImageList != null && coverImageList.size()>0){
                 List<WmMaterial> list = wmMaterialService.list(Wrappers.<WmMaterial>lambdaQuery()
                         .in(WmMaterial::getUrl, coverImageList).select(WmMaterial::getId));
                 // 3.2判断查询出来的素材列表与传入的素材列表是否数量匹配（不匹配则代表素材被删除）
@@ -217,9 +182,91 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
             }
 
         }
+        return null;
+    }
 
+    /**
+     * 保存内容图片与文章关系
+     * @param isSumit
+     * @param wmNews
+     * @param imageUrls
+     * @return
+     */
+    private ResponseResult extracted(Integer isSumit, WmNews wmNews, List<String> imageUrls) {
+        if (isSumit.equals(WmNews.Status.SUBMIT.getCode()) && imageUrls.size() >0){
+            List<WmMaterial> list = wmMaterialService.list(Wrappers.<WmMaterial>lambdaQuery()
+                    .in(WmMaterial::getUrl, imageUrls).select(WmMaterial::getId));
+            // 3.2判断查询出来的素材列表与传入的素材列表是否数量匹配（不匹配则代表素材被删除）
+            if (imageUrls.size() != list.size()){
+                return ResponseResult.errorResult(AppHttpCodeEnum.MATERIASL_REFERENCE_FAIL);
+            }
+            // 3.3 获取查询出来的素材list里面对应的主键ID
+            List<Integer> collect = list.stream().map(WmMaterial::getId).collect(Collectors.toList());
+            Integer num = 0;
+            List<WmNewsMaterial> wmNewsMaterials = new ArrayList<>();
+            for (Integer integer : collect) {
+                WmNewsMaterial wmNewsMaterial = new WmNewsMaterial();
+                wmNewsMaterial.setNewsId(wmNews.getId());
+                wmNewsMaterial.setMaterialId(integer);
+                wmNewsMaterial.setType(WemediaConstants.WM_CONTENT_REFERENCE);
+                wmNewsMaterial.setOrd(num);
+                wmNewsMaterials.add(wmNewsMaterial);
+                num++;
+            }
+            wmNewsMaterialService.saveBatch(wmNewsMaterials);
+        }
+        return null;
+    }
 
+    /**
+     * 返回dto中文章里面所有的图片url地址
+     * @param dto
+     * @return
+     */
+    private List<String> getStrings(WmNewsDto dto) {
+        List<String> imageUrls = new ArrayList<>();
+        String content = dto.getContent();
+        if (StringUtils.isNotBlank(content)){
+            // 文章内容为字符串 "[{},{}]"
+            List<Map> maps = JSON.parseArray(content, Map.class);
+            if (maps != null && maps.size()>0){
+                // 开始获取文章中所有图片
+                for (Map map : maps) {
+                    String type = (String) map.get("type");
+                    if (type.equals("image")){
+                        String imageUrl = (String) map.get("value");// 获得图片地址
+                        imageUrls.add(imageUrl);
+                    }
+                }
+            }
+        }
+        return imageUrls;
+    }
 
-        return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS);
+    /**
+     * 更新或者创建文章
+     * @param isSumit
+     * @param wmNews
+     * @return
+     */
+    private ResponseResult createOrUpdateByWmNews(Integer isSumit, WmNews wmNews) {
+        wmNews.setUserId(ThreadLocalUtil.getUserId());
+        wmNews.setStatus(isSumit);
+        wmNews.setEnable(1);
+        wmNews.setSubmitedTime(new Date());
+        if (wmNews.getId() == null){
+            wmNews.setCreatedTime(new Date());
+            save(wmNews);
+        }else {
+            WmNews byId = getById(wmNews.getId());
+            if (byId == null){
+                return ResponseResult.errorResult(AppHttpCodeEnum.DATA_NOT_EXIST);
+            }
+            updateById(wmNews);
+            // 删除文章与素材的关系，素材表 一个文章对应n个素材， 通过文章id删除所有关系
+            wmNewsMaterialService.remove(Wrappers.<WmNewsMaterial>lambdaQuery().eq(WmNewsMaterial::getNewsId, wmNews.getId()));
+
+        }
+        return null;
     }
 }
