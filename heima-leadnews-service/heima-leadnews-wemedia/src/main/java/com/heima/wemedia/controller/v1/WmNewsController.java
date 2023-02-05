@@ -35,6 +35,6 @@ public class WmNewsController {
 
     @PostMapping("/submit")
     public ResponseResult sumbmit(@RequestBody WmNewsDto dto){
-        return null;
+        return wmNewsService.submit(dto,dto.getStatus());
     }
 }
