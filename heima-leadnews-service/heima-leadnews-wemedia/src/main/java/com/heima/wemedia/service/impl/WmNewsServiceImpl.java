@@ -5,32 +5,28 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.heima.apis.article.IArticleClient;
+import com.heima.audit.aliyun.SampleUtils;
 import com.heima.common.constants.WemediaConstants;
+import com.heima.common.exception.CustomException;
+import com.heima.model.article.dtos.ArticleDto;
 import com.heima.model.common.dtos.PageResponseResult;
 import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.common.enums.AppHttpCodeEnum;
 import com.heima.model.wemedia.dtos.WmNewsDto;
 import com.heima.model.wemedia.dtos.WmNewsPageReqDto;
-import com.heima.model.wemedia.pojos.WmMaterial;
-import com.heima.model.wemedia.pojos.WmNews;
-import com.heima.model.wemedia.pojos.WmNewsMaterial;
+import com.heima.model.wemedia.pojos.*;
 import com.heima.utils.common.ThreadLocalUtil;
 import com.heima.wemedia.mapper.WmNewsMapper;
-import com.heima.wemedia.service.WmMaterialService;
-import com.heima.wemedia.service.WmNewsMaterialService;
-import com.heima.wemedia.service.WmNewsService;
+import com.heima.wemedia.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.data.Json;
 import org.apache.commons.lang3.StringUtils;
-import org.bouncycastle.cms.PasswordRecipientId;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -126,7 +122,128 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         if (extracted1 != null){
             return extracted1;
         }
+        String text = extractText(wmNews);
+        //第二部分：调用阿里云文本检测接口进行审核
+        boolean flag = textAudit(wmNews, text);
+        if(!flag){
+            log.error("[自媒体文章自动审核]阿里云文本审核失败或不确定，文章id:{}", wmNews.getId());
+            return ResponseResult.errorResult(AppHttpCodeEnum.SERVER_ERROR,"]阿里云文本审核失败或不确定");
+        }
+
+        // TODO 图片审核暂时不写(已有文章自动审核)
+        // 审核通过 续写
+        if (wmNews.getPublishTime().getTime()>System.currentTimeMillis()){
+            // 说明用户设定时间大于审核时间 [审核通过待发布]
+            wmNews.setStatus(WmNews.Status.SUBMIT.getCode());
+            wmNews.setReason("自动审核成功等待发布");
+            updateById(wmNews);
+        }else {
+            // 说明发布时间已到，立即发布，调用App服务
+            ResponseResult responseResult = saveOrUpdateApArticle(wmNews);
+            if (responseResult != null){
+                return responseResult;
+            }
+        }
         return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS);
+    }
+
+    @Autowired
+    private WmChannelService wmChannelService;
+    @Autowired
+    private WmUserService wmUserService;
+
+    @Autowired
+    private IArticleClient iArticleClient;
+    /**
+     * 创建或更新APP文章
+     * @param wmNews
+     * @return
+     */
+    private ResponseResult saveOrUpdateApArticle(WmNews wmNews){
+        ArticleDto articleDto = new ArticleDto();
+        articleDto.setId(wmNews.getArticleId());
+        articleDto.setTitle(wmNews.getTitle());
+        articleDto.setContent(wmNews.getContent());
+        articleDto.setLabels(wmNews.getLabels());
+        articleDto.setImages(wmNews.getImages());
+        articleDto.setPublishTime(wmNews.getPublishTime());
+        if (wmNews.getCreatedTime() == null){
+            articleDto.setCreatedTime(new Date());
+        }
+        articleDto.setChannelId(wmNews.getChannelId());
+        // 查询当前文章的频道名称
+        WmChannel channel = wmChannelService.getById(wmNews.getChannelId());
+        articleDto.setChannelName(channel.getName());
+        // 查询当前文章发布用户
+        WmUser wmUser = wmUserService.getById(wmNews.getUserId());
+        articleDto.setAuthorId(wmUser.getApAuthorId().longValue());
+        articleDto.setAuthorName(wmUser.getName());
+        ResponseResult responseResult = iArticleClient.saveOrUpdateArticle(articleDto);
+        if (responseResult.getCode() != 200){
+            log.error("[自媒体文章自动审核]创建APP文章数据失败，文章id:{}", wmNews.getId());
+            throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_CREATE_FAIL);
+        }
+        //3.得到响应里的articleId，更新到wmNews表中
+        Long articleId = Long.valueOf(responseResult.getData()+"");
+        wmNews.setArticleId(articleId);//APP文章ID
+        this.updateById(wmNews);
+        return  null;
+    }
+
+    @Autowired
+    private SampleUtils sample;
+
+    /**
+     * 使用阿里云内容安全接口审核文本
+     * @param wmNews
+     * @param text
+     * @return
+     */
+    private boolean textAudit(WmNews wmNews, String text) {
+        boolean flag = true; //默认审核通过
+        try {
+            Map<String,String> map = sample.checkText(text);
+            String suggestion = map.get("suggestion");
+            if(suggestion.equals("block")){
+                flag = false;
+                wmNews.setStatus(WmNews.Status.FAIL.getCode()); //设置文章状态为审核失败
+                wmNews.setReason("阿里云文本审核失败");
+                this.updateById(wmNews);
+            } else if(suggestion.equals("review")){
+                flag = false;
+                wmNews.setStatus(WmNews.Status.ADMIN_AUTH.getCode()); //设置文章状态为待人工审核
+                wmNews.setReason("阿里云文本审核不确定，进入人工审核");
+                this.updateById(wmNews);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return flag;
+    }
+
+    /**
+     * 抽取文章中全部的文本
+     * @param wmNews
+     * @return
+     */
+    private String extractText(WmNews wmNews) {
+        //文本来源： 标题 + 标签 + 内容文本
+        StringBuffer text = new StringBuffer();
+        text.append(wmNews.getTitle());//标题
+        text.append(wmNews.getLabels());//标签
+        if(StringUtils.isNotBlank(wmNews.getContent())){
+            List<Map> mapList = JSON.parseArray(wmNews.getContent(), Map.class);
+            if(mapList!=null && mapList.size()>0){
+                for (Map<String,String> map : mapList) {
+                    String type = map.get("type");
+                    if(type.equals("text")){
+                        String contentText = map.get("value");
+                        text.append(contentText);//内容文本
+                    }
+                }
+            }
+        }
+        return text.toString();
     }
 
     /**

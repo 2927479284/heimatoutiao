@@ -1,0 +1,5 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.heima.audit.aliyun.GreenImageScan,\
+  com.heima.audit.aliyun.GreenTextScan,\
+  com.heima.audit.aliyun.SampleUtils,\
+  com.heima.audit.tess4j.Tess4jClient

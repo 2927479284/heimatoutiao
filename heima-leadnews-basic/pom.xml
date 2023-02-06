@@ -14,6 +14,7 @@
     <modules>
         <module>heima-file-starter</module>
         <module>heima-es-starter</module>
+        <module>heima-audit-starter</module>
     </modules>
 
     <properties>
