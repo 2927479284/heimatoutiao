@@ -8,6 +8,7 @@ import com.heima.article.mapper.ApArticleMapper;
 import com.heima.article.service.ApArticleService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import com.heima.article.service.ArticleHtmlService;
 import com.heima.model.article.dtos.ArticleDto;
 import com.heima.model.article.dtos.ArticleHomeDto;
 import com.heima.model.article.pojos.ApArticle;
@@ -52,6 +53,9 @@ public class ApArticleServiceImpl extends ServiceImpl<ApArticleMapper, ApArticle
         return ResponseResult.okResult(apArticleMapper.loadArticleList(dto, loadtype));
     }
 
+
+    @Autowired
+    private ArticleHtmlService articleHtmlService;
 
     @Override
     public ResponseResult saveOrUpdateArticle(ArticleDto dto) {
@@ -103,7 +107,9 @@ public class ApArticleServiceImpl extends ServiceImpl<ApArticleMapper, ApArticle
             apArticleContentDB.setContent(dto.getContent());
             apArticleContentMapper.updateById(apArticleContentDB);
         }
-        //4.响应APP文章ID
+        //4.生成对应的文章内容html文件
+        articleHtmlService.generatorHtml(apArticle,dto.getContent());
+        //5.响应APP文章ID
         return ResponseResult.okResult(apArticle.getId());
     }
 }

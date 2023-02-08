@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.jws.Oneway;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -83,6 +84,8 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
 
     @Autowired
     private WmMaterialService wmMaterialService;
+    @Autowired
+    private WmNewsAuditService wmNewsAuditService;
     @Transactional
     @Override
     public ResponseResult submit(WmNewsDto dto, Integer isSumit) {
@@ -122,28 +125,9 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         if (extracted1 != null){
             return extracted1;
         }
-        String text = extractText(wmNews);
-        //第二部分：调用阿里云文本检测接口进行审核
-        boolean flag = textAudit(wmNews, text);
-        if(!flag){
-            log.error("[自媒体文章自动审核]阿里云文本审核失败或不确定，文章id:{}", wmNews.getId());
-            return ResponseResult.errorResult(AppHttpCodeEnum.SERVER_ERROR,"]阿里云文本审核失败或不确定");
-        }
+        //第五部分：调用阿里云(或者本地)文本检测接口进行审核
+        wmNewsAuditService.auditWmNews(wmNews);
 
-        // TODO 图片审核暂时不写(已有文章自动审核)
-        // 审核通过 续写
-        if (wmNews.getPublishTime().getTime()>System.currentTimeMillis()){
-            // 说明用户设定时间大于审核时间 [审核通过待发布]
-            wmNews.setStatus(WmNews.Status.SUBMIT.getCode());
-            wmNews.setReason("自动审核成功等待发布");
-            updateById(wmNews);
-        }else {
-            // 说明发布时间已到，立即发布，调用App服务
-            ResponseResult responseResult = saveOrUpdateApArticle(wmNews);
-            if (responseResult != null){
-                return responseResult;
-            }
-        }
         return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS);
     }
 
@@ -214,6 +198,9 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
                 wmNews.setStatus(WmNews.Status.ADMIN_AUTH.getCode()); //设置文章状态为待人工审核
                 wmNews.setReason("阿里云文本审核不确定，进入人工审核");
                 this.updateById(wmNews);
+            }else {
+                wmNews.setStatus(WmNews.Status.PUBLISHED.getCode());//设置当前文章为已发布状态
+                wmNews.setReason("文章审核通过已发布");
             }
         } catch (Exception e) {
             e.printStackTrace();

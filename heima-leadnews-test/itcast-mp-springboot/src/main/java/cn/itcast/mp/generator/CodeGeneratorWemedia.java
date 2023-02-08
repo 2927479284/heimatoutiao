@@ -32,7 +32,7 @@ public class CodeGeneratorWemedia {
 
 
 	private static final String[] TABLE_NAMES = new String[]{
-			"wm_channel"
+			"wm_sensitive"
 	};
 
 	private static final Boolean swagger2 = false;
