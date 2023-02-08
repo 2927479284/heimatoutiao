@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 异步调用阿里云审核接口 实现类
+ * 异步调用接口 实现类
  */
 @Service
 public class WmNewsAuditServiceImpl implements WmNewsAuditService {
@@ -69,6 +69,8 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
             }
         }
     }
+
+
 
     /**
      * 使用阿里云内容安全接口审核文本
@@ -227,5 +229,12 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
             }
         }
         return text.toString();
+    }
+
+
+    @Override
+    @Async("taskExecutor")
+    public void deleteArticle(Long id) {
+        iArticleClient.deleteArticle(id);
     }
 }

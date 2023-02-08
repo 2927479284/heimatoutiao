@@ -121,7 +121,7 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
             return extracted;
         }
         //第四部分：保存封面图片与文章关系
-        ResponseResult extracted1 = extracted(dto, isSumit, wmNews, coverImageList);
+        ResponseResult extracted1 = extracted2(dto, isSumit, wmNews, imageUrls);
         if (extracted1 != null){
             return extracted1;
         }
@@ -129,108 +129,6 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         wmNewsAuditService.auditWmNews(wmNews);
 
         return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS);
-    }
-
-    @Autowired
-    private WmChannelService wmChannelService;
-    @Autowired
-    private WmUserService wmUserService;
-
-    @Autowired
-    private IArticleClient iArticleClient;
-    /**
-     * 创建或更新APP文章
-     * @param wmNews
-     * @return
-     */
-    private ResponseResult saveOrUpdateApArticle(WmNews wmNews){
-        ArticleDto articleDto = new ArticleDto();
-        articleDto.setId(wmNews.getArticleId());
-        articleDto.setTitle(wmNews.getTitle());
-        articleDto.setContent(wmNews.getContent());
-        articleDto.setLabels(wmNews.getLabels());
-        articleDto.setImages(wmNews.getImages());
-        articleDto.setPublishTime(wmNews.getPublishTime());
-        if (wmNews.getCreatedTime() == null){
-            articleDto.setCreatedTime(new Date());
-        }
-        articleDto.setChannelId(wmNews.getChannelId());
-        // 查询当前文章的频道名称
-        WmChannel channel = wmChannelService.getById(wmNews.getChannelId());
-        articleDto.setChannelName(channel.getName());
-        // 查询当前文章发布用户
-        WmUser wmUser = wmUserService.getById(wmNews.getUserId());
-        articleDto.setAuthorId(wmUser.getApAuthorId().longValue());
-        articleDto.setAuthorName(wmUser.getName());
-        ResponseResult responseResult = iArticleClient.saveOrUpdateArticle(articleDto);
-        if (responseResult.getCode() != 200){
-            log.error("[自媒体文章自动审核]创建APP文章数据失败，文章id:{}", wmNews.getId());
-            throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_CREATE_FAIL);
-        }
-        //3.得到响应里的articleId，更新到wmNews表中
-        Long articleId = Long.valueOf(responseResult.getData()+"");
-        wmNews.setArticleId(articleId);//APP文章ID
-        this.updateById(wmNews);
-        return  null;
-    }
-
-    @Autowired
-    private SampleUtils sample;
-
-    /**
-     * 使用阿里云内容安全接口审核文本
-     * @param wmNews
-     * @param text
-     * @return
-     */
-    private boolean textAudit(WmNews wmNews, String text) {
-        boolean flag = true; //默认审核通过
-        try {
-            Map<String,String> map = sample.checkText(text);
-            String suggestion = map.get("suggestion");
-            if(suggestion.equals("block")){
-                flag = false;
-                wmNews.setStatus(WmNews.Status.FAIL.getCode()); //设置文章状态为审核失败
-                wmNews.setReason("阿里云文本审核失败");
-                this.updateById(wmNews);
-            } else if(suggestion.equals("review")){
-                flag = false;
-                wmNews.setStatus(WmNews.Status.ADMIN_AUTH.getCode()); //设置文章状态为待人工审核
-                wmNews.setReason("阿里云文本审核不确定，进入人工审核");
-                this.updateById(wmNews);
-            }else {
-                wmNews.setStatus(WmNews.Status.PUBLISHED.getCode());//设置当前文章为已发布状态
-                wmNews.setReason("文章审核通过已发布");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return flag;
-    }
-
-    /**
-     * 抽取文章中全部的文本
-     * @param wmNews
-     * @return
-     */
-    private String extractText(WmNews wmNews) {
-        //文本来源： 标题 + 标签 + 内容文本
-        StringBuffer text = new StringBuffer();
-        text.append(wmNews.getTitle());//标题
-        text.append(wmNews.getLabels());//标签
-        if(StringUtils.isNotBlank(wmNews.getContent())){
-            List<Map> mapList = JSON.parseArray(wmNews.getContent(), Map.class);
-            if(mapList!=null && mapList.size()>0){
-                for (Map<String,String> map : mapList) {
-                    String type = map.get("type");
-                    if(type.equals("text")){
-                        String contentText = map.get("value");
-                        text.append(contentText);//内容文本
-                    }
-                }
-            }
-        }
-        return text.toString();
     }
 
     /**
@@ -241,7 +139,7 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
      * @param coverImageList
      * @return
      */
-    private ResponseResult extracted(WmNewsDto dto, Integer isSumit, WmNews wmNews, List<String> coverImageList) {
+    private ResponseResult extracted2(WmNewsDto dto, Integer isSumit, WmNews wmNews, List<String> coverImageList) {
         if (isSumit.equals(WmNews.Status.SUBMIT.getCode())){
             if (Objects.equals(dto.getType(), WemediaConstants.WM_NEWS_TYPE_AUTO)){
 //                List<String> images = dto.getImages();
@@ -290,7 +188,7 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
     }
 
     /**
-     * 保存内容图片与文章关系
+     * 保存内容图片与文章关系(提交审核时调用)
      * @param isSumit
      * @param wmNews
      * @param imageUrls
@@ -298,6 +196,7 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
      */
     private ResponseResult extracted(Integer isSumit, WmNews wmNews, List<String> imageUrls) {
         if (isSumit.equals(WmNews.Status.SUBMIT.getCode()) && imageUrls.size() >0){
+            // 根据文章中里面的素材url查询出所有的素材对应ID
             List<WmMaterial> list = wmMaterialService.list(Wrappers.<WmMaterial>lambdaQuery()
                     .in(WmMaterial::getUrl, imageUrls).select(WmMaterial::getId));
             // 3.2判断查询出来的素材列表与传入的素材列表是否数量匹配（不匹配则代表素材被删除）
@@ -372,5 +271,18 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
 
         }
         return null;
+    }
+
+    @Override
+    public ResponseResult downOrUp(WmNewsDto dto) {
+        WmNews wmNews = getById(dto.getId());
+        if (wmNews!=null){
+            wmNews.setEnable(dto.getEnable());
+            updateById(wmNews);
+            if (dto.getEnable() == 0) {
+                wmNewsAuditService.deleteArticle(wmNews.getArticleId());
+            }
+        }
+        return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS.getCode());
     }
 }

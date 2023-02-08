@@ -13,7 +13,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .excludePathPatterns("/api/v1/article/load/**",
                         "/api/v1/article/loadmore/**",
                         "/api/v1/article/loadnew/**",
-                        "/api/v1/article/save")
+                        "/api/v1/article/save",
+                        "/api/v1/article/deleteArticle")
                 //放行swagger和knife4j
                 .excludePathPatterns( "/v2/api-docs",
                         "/doc.html",

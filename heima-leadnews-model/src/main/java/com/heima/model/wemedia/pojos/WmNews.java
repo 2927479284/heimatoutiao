@@ -123,7 +123,11 @@ public class WmNews implements Serializable {
      //状态枚举类
     @Alias("WmNewsStatus")
     public enum Status{
-        NORMAL(0),SUBMIT(1),FAIL(2),ADMIN_AUTH(3),ADMIN_SUCCESS(4),SUCCESS(8),PUBLISHED(9);
+
+        NORMAL(0),SUBMIT(1),FAIL(2),
+        ADMIN_AUTH(3),ADMIN_SUCCESS(4),
+        SUCCESS(8),PUBLISHED(9);
+
         Integer code;
         Status(Integer code){
             this.code = code;

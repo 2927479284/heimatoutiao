@@ -2,6 +2,7 @@ package com.heima.wemedia.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.heima.file.service.FileStorageService;
@@ -13,6 +14,7 @@ import com.heima.model.wemedia.pojos.WmMaterial;
 import com.heima.utils.common.ThreadLocalUtil;
 import com.heima.wemedia.mapper.WmMaterialMapper;
 import com.heima.wemedia.service.WmMaterialService;
+import com.heima.wemedia.service.WmNewsAuditService;
 import org.checkerframework.checker.guieffect.qual.UIPackage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,7 +30,6 @@ public class WmMaterialServiceImpl extends ServiceImpl<WmMaterialMapper, WmMater
 
     @Autowired
     private FileStorageService fileStorageService;
-
     @Override
     public ResponseResult uploadPicture(MultipartFile multipartFile) {
         //保证业务严谨性，是开发经验的重要体现
@@ -63,7 +64,6 @@ public class WmMaterialServiceImpl extends ServiceImpl<WmMaterialMapper, WmMater
             save(wmMaterial);
             //5.响应素材数据（目的是回显）
             return ResponseResult.okResult(wmMaterial);
-
         }catch (Exception e){
             e.printStackTrace();
             return ResponseResult.errorResult(AppHttpCodeEnum.PARAM_INVALID, "文件上传失败");
@@ -94,5 +94,35 @@ public class WmMaterialServiceImpl extends ServiceImpl<WmMaterialMapper, WmMater
         responseResult.setData(page.getRecords());//设置每一页查询到的列表数据
 
         return responseResult;
+    }
+
+    @Override
+    public ResponseResult collect(Integer id) {
+        WmMaterial wmMaterial = getOne(Wrappers.<WmMaterial>lambdaQuery().eq(WmMaterial::getId,id));
+        if (wmMaterial.getIsCollection() == 0){
+            wmMaterial.setIsCollection(1);
+            updateById(wmMaterial);
+        }
+        return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS.getCode());
+    }
+
+    @Override
+    public ResponseResult cancelCollect(Integer id) {
+        WmMaterial wmMaterial = getOne(Wrappers.<WmMaterial>lambdaQuery().eq(WmMaterial::getId,id));
+        if (wmMaterial.getIsCollection() == 1){
+            wmMaterial.setIsCollection(0);
+            updateById(wmMaterial);
+        }
+        return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS.getCode());
+    }
+
+
+    @Override
+    public ResponseResult delPicture(Integer id) {
+        WmMaterial one = getOne(Wrappers.<WmMaterial>lambdaQuery().eq(WmMaterial::getId, id));
+        if (one != null){
+            removeById(one);
+        }
+        return  ResponseResult.okResult(AppHttpCodeEnum.SUCCESS.getCode());
     }
 }

@@ -5,12 +5,12 @@ import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.wemedia.dtos.WmMaterialDto;
 import com.heima.wemedia.service.WmMaterialService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 素材控制器
+ */
 @RestController
 @RequestMapping("/api/v1/material")
 public class WmMaterialController {
@@ -28,4 +28,37 @@ public class WmMaterialController {
     public ResponseResult list(@RequestBody WmMaterialDto dto){
         return wmMaterialService.list(dto);
     }
+
+
+    /**
+     * 收藏素材
+     * @param id
+     * @return
+     */
+    @GetMapping("/collect/{id}")
+    public ResponseResult collect(@PathVariable("id") Integer id){
+        return wmMaterialService.collect(id);
+    }
+
+
+    /**
+     * 取消收藏素材
+     * @param id
+     * @return
+     */
+    @GetMapping("/cancel_collect/{id}")
+    public ResponseResult cancelCollect(@PathVariable("id") Integer id){
+        return wmMaterialService.cancelCollect(id);
+    }
+
+    /**
+     * 删除素材
+     * @param id
+     * @return
+     */
+    @GetMapping("/del_picture/{id}")
+    public ResponseResult delPicture(@PathVariable("id") Integer id){
+        return wmMaterialService.delPicture(id);
+    }
+
 }

@@ -30,16 +30,19 @@ public class ApArticleController {
 
     @PostMapping("/load")
     public ResponseResult load(@RequestBody ArticleHomeDto dto) {
+        log.info("首次加载文章");
         return apArticleService.load(dto,ArticleConstants.LOADTYPE_LOAD_MORE);
     }
 
     @PostMapping("/loadmore")
     public ResponseResult loadMore(@RequestBody ArticleHomeDto dto) {
+        log.info("加载更多文章，上划");
         return apArticleService.load(dto,ArticleConstants.LOADTYPE_LOAD_MORE);
     }
 
     @PostMapping("/loadnew")
     public ResponseResult loadNew(@RequestBody ArticleHomeDto dto) {
+        log.info("加载最新文章，下拉");
         return apArticleService.load(dto,ArticleConstants.LOADTYPE_LOAD_NEW);
     }
 }
