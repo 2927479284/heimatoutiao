@@ -5,6 +5,7 @@ import com.aliyun.imageaudit20191230.models.ScanTextResponseBody;
 import com.aliyun.tea.TeaException;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -14,7 +15,11 @@ import java.util.Map;
 @Component
 @Getter
 @Setter
+@ConfigurationProperties(prefix = "aliyun")
 public class SampleUtils {
+
+    private String accessKeyId;
+    private String secret;
 
     /**
      * 使用AK&SK初始化账号Client
@@ -41,7 +46,7 @@ public class SampleUtils {
 
     public Map<String,String> checkText(String context) {
         // 工程代码泄露可能会导致AccessKey泄露，并威胁账号下所有资源的安全性。以下代码示例仅供参考，建议使用更安全的 STS 方式，更多鉴权访问方式请参见：https://help.aliyun.com/document_detail/378657.html
-        com.aliyun.imageaudit20191230.Client client = new SampleUtils().createClient("LTAI5t8PZ6BLWhBRpkqGmKGu", "aOKth2RVfSN921TZKXakvHc7TvJq9V");
+        com.aliyun.imageaudit20191230.Client client = new SampleUtils().createClient(accessKeyId, secret);
         com.aliyun.imageaudit20191230.models.ScanTextRequest.ScanTextRequestLabels labels0 = new com.aliyun.imageaudit20191230.models.ScanTextRequest.ScanTextRequestLabels()
                 .setLabel("abuse");
         com.aliyun.imageaudit20191230.models.ScanTextRequest.ScanTextRequestTasks tasks0 = new com.aliyun.imageaudit20191230.models.ScanTextRequest.ScanTextRequestTasks()
