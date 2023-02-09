@@ -6,6 +6,7 @@ import com.heima.apis.article.IArticleClient;
 import com.heima.audit.aliyun.SampleUtils;
 import com.heima.audit.tess4j.Tess4jClient;
 import com.heima.common.exception.CustomException;
+import com.heima.common.redis.CacheService;
 import com.heima.file.service.FileStorageService;
 import com.heima.model.article.dtos.ArticleDto;
 import com.heima.model.common.dtos.ResponseResult;
@@ -172,6 +173,9 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
     @Autowired
     private WmSensitiveService sensitiveService;
 
+
+    @Autowired
+    private CacheService cacheService;
     /**
      * DFA本地敏感词库审核
      * @param wmNews
@@ -180,10 +184,18 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
      */
     private boolean dfaAudit(WmNews wmNews, String text) {
         boolean flag = true; //默认审核通过
-
         //1.查询全部敏感词数据
-        List<WmSensitive> sensitiveList = sensitiveService.list(Wrappers.<WmSensitive>lambdaQuery().select(WmSensitive::getSensitives));
-        List<String> sensitiveStrList = sensitiveList.stream().map(WmSensitive::getSensitives).collect(Collectors.toList());
+
+        //1.1 先从Redis缓存中查询敏感词列表
+        String key = "sensitive:cache:list";
+        List<String> sensitiveStrList = cacheService.lRange(key, 0, -1);
+        if(sensitiveStrList.isEmpty()){
+            //1.2 如果查询不到，再从数据库表查询，设置到Redis缓存中
+            List<WmSensitive> sensitiveList = sensitiveService.list(Wrappers.<WmSensitive>lambdaQuery().select(WmSensitive::getSensitives));
+            sensitiveStrList = sensitiveList.stream().map(WmSensitive::getSensitives).collect(Collectors.toList());
+
+            cacheService.lLeftPushAll(key,sensitiveStrList);
+        }
 
         //2.将敏感词初始化到DFA词库中
         SensitiveWordUtil.initMap(sensitiveStrList);

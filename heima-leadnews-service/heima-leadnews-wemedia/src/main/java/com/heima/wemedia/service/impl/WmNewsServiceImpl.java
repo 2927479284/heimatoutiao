@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.heima.apis.article.IArticleClient;
 import com.heima.audit.aliyun.SampleUtils;
 import com.heima.common.constants.WemediaConstants;
+import com.heima.common.constants.WmNewsMessageConstants;
 import com.heima.common.exception.CustomException;
 import com.heima.model.article.dtos.ArticleDto;
 import com.heima.model.common.dtos.PageResponseResult;
@@ -23,6 +24,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -272,6 +274,8 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         }
         return null;
     }
+    @Autowired
+    private KafkaTemplate<String,Object> kafkaTemplate;
 
     @Override
     public ResponseResult downOrUp(WmNewsDto dto) {
@@ -279,9 +283,11 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         if (wmNews!=null){
             wmNews.setEnable(dto.getEnable());
             updateById(wmNews);
-            if (dto.getEnable() == 0) {
-                wmNewsAuditService.deleteArticle(wmNews.getArticleId());
-            }
+            Map<String,Object> map = new HashMap<>();
+            map.put("articleId",wmNews.getArticleId());
+            map.put("enable",dto.getEnable());
+            String jonsStr = JSON.toJSONString(map);
+            kafkaTemplate.send(WmNewsMessageConstants.WM_NEWS_UP_OR_DOWN_TOPIC,jonsStr);
         }
         return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS.getCode());
     }
