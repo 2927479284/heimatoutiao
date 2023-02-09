@@ -27,7 +27,6 @@ public class ArticleClient implements IArticleClient {
     @Override
     @PostMapping("/api/v1/article/deleteArticle")
     public void deleteArticle(@RequestBody Long id) {
-        System.out.println("aaaa");
         apArticleService.removeById(id);
     }
 }
