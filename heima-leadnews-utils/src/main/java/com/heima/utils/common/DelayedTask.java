@@ -9,8 +9,10 @@ public class DelayedTask  implements Delayed {
     
     // 任务的执行时间
     private int executeTime = 0;
-    
+
+    private int ji;
     public DelayedTask(int delay){
+        this.ji = delay;
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.SECOND,delay);
         this.executeTime = (int)(calendar.getTimeInMillis() /1000 );
@@ -39,6 +41,10 @@ public class DelayedTask  implements Delayed {
     }
 
 
+    public void getTaskName(){
+        System.out.println("第 "+ji+" 秒后的任务开始执行");
+    }
+
     public static void main(String[] args) {
         DelayQueue<DelayedTask> queue = new DelayQueue<DelayedTask>();
         
@@ -46,11 +52,13 @@ public class DelayedTask  implements Delayed {
         queue.add(new DelayedTask(10));
         queue.add(new DelayedTask(15));
 
-        System.out.println(System.currentTimeMillis()/1000+" start consume ");
+//        System.out.println(System.currentTimeMillis()/1000+" start consume ");
+        int num = 0;
         while(queue.size() != 0){
             DelayedTask delayedTask = queue.poll();
             if(delayedTask !=null ){
                 System.out.println(System.currentTimeMillis()/1000+" cosume task");
+                delayedTask.getTaskName();
             }
             //每隔一秒消费一次
             try {
@@ -58,6 +66,8 @@ public class DelayedTask  implements Delayed {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            num++;
+            System.out.println("等待："+num+"秒");
         }     
     }
 }

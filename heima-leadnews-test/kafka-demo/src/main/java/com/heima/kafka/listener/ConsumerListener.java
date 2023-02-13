@@ -29,4 +29,9 @@ public class ConsumerListener {
     public void msgNew02(ConsumerRecord<String,String> consumerRecord){
         System.out.println("key："+consumerRecord.key()+" value："+consumerRecord.value()+" 偏移量："+consumerRecord.offset());
     }
+
+    @KafkaListener(topics = "Topic03")
+    public void msgGroup(ConsumerRecord<String,String> consumerRecord){
+        System.out.println("key: "+consumerRecord.key()+" value: "+consumerRecord.value());
+    }
 }

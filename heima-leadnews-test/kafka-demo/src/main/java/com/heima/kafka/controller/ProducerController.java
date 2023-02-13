@@ -33,4 +33,14 @@ public class ProducerController {
         kafkaTemplate.send("Topic02",0,"key",value);
         return "ok";
     }
+
+    /**
+     * 测试一个组内N个消费者，是否可以全部接收消息
+     * @return
+     */
+    @GetMapping("/sendGroup/{key}/{value}")
+    public String sendGroup(@PathVariable("key")String key,@PathVariable("value")String value){
+        kafkaTemplate.send("Topic03",key,value);
+        return "ok";
+    }
 }
