@@ -10,14 +10,14 @@ public interface TaskService {
      * @return       任务id
      */
     public long addTask(Task task) ;
-//
-//    /**
-//     * 按照类型和优先级来拉取任务
-//     * @param type
-//     * @param priority
-//     * @return
-//     */
-//    public Task poll(int type,int priority);
+
+    /**
+     * 按照类型和优先级来拉取任务
+     * @param type
+     * @param priority
+     * @return
+     */
+    public Task poll(int type,int priority);
 
     /**
      * 定时同步未来任务队列数据到当前任务队列中

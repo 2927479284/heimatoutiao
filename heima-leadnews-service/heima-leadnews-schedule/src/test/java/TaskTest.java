@@ -50,4 +50,11 @@ public class TaskTest {
     public void getMilos(){
         System.out.println(DateTime.now().getMillis());// 返回时间戳 1676264707006
     }
+
+
+    @Test
+    public void TaskProp(){
+        Task poll = taskService.poll(1, 1001);
+        System.out.println("获取到的任务："+poll);
+    }
 }

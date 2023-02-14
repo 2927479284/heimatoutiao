@@ -21,4 +21,10 @@ public interface WmNewsAuditService {
      */
     void deleteArticle(Long id);
 
+
+    /**
+     * 创建APP文章
+     * @param wmNews
+     */
+    public void saveOrUpdateApArticle(WmNews wmNews);
 }

@@ -44,6 +44,9 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
 
     @Autowired
     private WmNewsService wmNewsService;
+
+    @Autowired
+    private WmNewsTaskService wmNewsTaskService;
     /**
      * 阿里云审核文章
      * @param wmNews
@@ -59,9 +62,10 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
             // 审核通过 续写
             if (wmNews.getPublishTime().getTime()>System.currentTimeMillis()){
                 // 说明用户设定时间大于审核时间 [审核通过待发布]
-                wmNews.setStatus(WmNews.Status.SUBMIT.getCode());
+                wmNews.setStatus(WmNews.Status.SUCCESS.getCode());
                 wmNews.setReason("自动审核成功等待发布");
                 wmNewsService.updateById(wmNews);
+                wmNewsTaskService.addTask(wmNews);
             }else {
                 // 说明发布时间已到，立即发布，调用App服务
                 wmNews.setStatus(WmNews.Status.PUBLISHED.getCode());//设置当前文章为已发布状态
@@ -140,7 +144,8 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
      * @param wmNews
      * @return
      */
-    private ResponseResult saveOrUpdateApArticle(WmNews wmNews){
+    @Override
+    public void saveOrUpdateApArticle(WmNews wmNews){
         ArticleDto articleDto = new ArticleDto();
         articleDto.setId(wmNews.getArticleId());
         articleDto.setTitle(wmNews.getTitle());
@@ -167,7 +172,6 @@ public class WmNewsAuditServiceImpl implements WmNewsAuditService {
         Long articleId = Long.valueOf(responseResult.getData()+"");
         wmNews.setArticleId(articleId);//APP文章ID
         wmNewsService.updateById(wmNews);
-        return  null;
     }
 
     @Autowired
