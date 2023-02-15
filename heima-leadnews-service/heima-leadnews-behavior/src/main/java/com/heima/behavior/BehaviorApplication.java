@@ -1,14 +1,13 @@
-package com.heima.wemedia.gateway;
+package com.heima.behavior;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 @SpringBootApplication
-
-public class WemediaGatewayAplication {
+public class BehaviorApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(WemediaGatewayAplication.class,args);
+        SpringApplication.run(BehaviorApplication.class,args);
     }
 }

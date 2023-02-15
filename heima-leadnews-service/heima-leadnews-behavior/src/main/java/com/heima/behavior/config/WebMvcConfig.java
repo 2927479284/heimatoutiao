@@ -1,4 +1,5 @@
-package com.heima.user.config;
+package com.heima.behavior.config;
+
 
 import com.heima.common.interceptor.TokenInterceptor;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +11,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new TokenInterceptor()).addPathPatterns("/**")
-                .excludePathPatterns("/api/v1/login/**","/api/v1/user/one/**")
                 //放行swagger和knife4j
                 .excludePathPatterns( "/v2/api-docs",
                         "/doc.html",
@@ -20,6 +20,5 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/swagger-ui.html",
                         "/webjars/**",
                         "/actuator/**");
-        ;
     }
 }
