@@ -1,5 +1,6 @@
 package com.heima.comment.service;
 
+import com.heima.model.comment.dtos.CommentDto;
 import com.heima.model.comment.dtos.CommentLikeDto;
 import com.heima.model.comment.dtos.CommentSaveDto;
 import com.heima.model.common.dtos.ResponseResult;
@@ -20,4 +21,11 @@ public interface ApCommentService {
      * @return
      */
     ResponseResult like(CommentLikeDto dto);
+
+    /**
+     * 加载评论
+     * @param dto
+     * @return
+     */
+    ResponseResult load(CommentDto dto);
 }

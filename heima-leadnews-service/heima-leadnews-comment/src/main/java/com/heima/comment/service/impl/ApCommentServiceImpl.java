@@ -2,25 +2,32 @@ package com.heima.comment.service.impl;
 
 import com.heima.apis.user.IUserClient;
 import com.heima.comment.service.ApCommentService;
+import com.heima.model.comment.dtos.CommentDto;
 import com.heima.model.comment.dtos.CommentLikeDto;
 import com.heima.model.comment.dtos.CommentSaveDto;
 import com.heima.model.comment.pojos.ApComment;
 import com.heima.model.comment.pojos.ApCommentLike;
+import com.heima.model.comment.vos.CommentVo;
 import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.common.enums.AppHttpCodeEnum;
 import com.heima.model.user.pojos.ApUser;
 import com.heima.utils.common.ThreadLocalUtil;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections.map.HashedMap;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2
@@ -88,7 +95,9 @@ public class ApCommentServiceImpl implements ApCommentService {
         }
 
         //3.查询点赞记录
-        ApCommentLike apCommentLike = mongoTemplate.findOne(Query.query(Criteria.where("userId").is(user.getId()).and("commentId").is(dto.getCommentId())), ApCommentLike.class);
+        ApCommentLike apCommentLike = mongoTemplate.findOne(Query.query(Criteria.where("userId")
+                .is(user.getId()).and("commentId")
+                .is(dto.getCommentId())), ApCommentLike.class);
 
         if(apCommentLike==null){ //3.1如果点赞记录不存在
 
@@ -148,5 +157,90 @@ public class ApCommentServiceImpl implements ApCommentService {
         map.put("likes",apComment.getLikes()); //最点赞数
 
         return ResponseResult.okResult(map);
+    }
+
+
+    @Override
+    public ResponseResult load(CommentDto dto) {
+        //1.判断参数
+        if(dto==null || dto.getArticleId()==null || dto.getArticleId()<0){
+            return ResponseResult.errorResult(AppHttpCodeEnum.PARAM_INVALID);
+        }
+        int size = 10;//默认查询10条数据
+        List<ApComment> apCommentList = new ArrayList<>();
+        if (dto.getIndex() == 1) { //如果来自于首页请求， 查询热点评论列表+剩余普通评论列表
+            //1）.查询热点评论列表（查询条件：文章ID、内容类型、flag=1， 结果：按照点赞数倒排序  限制查询5条）
+            List<ApComment> apCommentHotList = mongoTemplate.find(Query.query(Criteria.where("objectId")
+                    .is(dto.getArticleId()) //文章ID
+                    .and("type").is(0) //内容类型 0-文章
+                    .and("flag").is(1) //热点评论
+                    .and("createdTime").lt(dto.getMinDate() //创建时间
+                    )).with(Sort.by(Sort.Direction.DESC, "likes")//按照点赞数倒排序
+            ).limit(5), ApComment.class);
+            if (apCommentHotList == null) {
+                apCommentHotList = new ArrayList<>();
+            }
+            apCommentList.addAll(apCommentHotList);
+            //2）.查询剩余普通评论列表（查询条件：文章ID、内容类型、flag=0， 结果：按照创建时间倒排序  限制查询10-热点评论列表实际查询到的条数）
+            List<ApComment> apCommentCommonList = mongoTemplate.find(Query.query(Criteria.where("objectId")
+                    .is(dto.getArticleId()) //文章ID
+                    .and("type").is(0) //内容类型 0-文章
+                    .and("flag").is(0) //普通评论
+                    .and("createdTime").lt(dto.getMinDate() //创建时间
+                    )).with(Sort.by(Sort.Direction.DESC, "createdTime")//按照时间倒排序
+            ).limit(size - apCommentHotList.size()), ApComment.class);
+
+            apCommentList.addAll(apCommentCommonList);
+        } else { //如果来自于非首页请求， 查询普通评论列表（查询条件：文章ID、内容类型、flag=0， 结果：按照创建时间倒排序  限制10条）
+            apCommentList = mongoTemplate.find(Query.query(Criteria.where("objectId")
+                    .is(dto.getArticleId()) //文章ID
+                    .and("type").is(0) //内容类型 0-文章
+                    .and("flag").is(0) //普通评论
+                    .and("createdTime").lt(dto.getMinDate() //创建时间
+                    )).with(Sort.by(Sort.Direction.DESC, "createdTime")//按照时间倒排序
+            ).limit(size), ApComment.class);
+        }
+        if(apCommentList==null){
+            apCommentList = new ArrayList<>();
+        }
+
+        //2.判断用户如果未登录，直接响应数据
+        Integer userId = ThreadLocalUtil.getUserId();
+        if(userId==0){
+            return ResponseResult.okResult(apCommentList);
+        }
+        //3.如果已登录，处理哪些评论是当前用户点赞过的
+
+        //3.1 获取所有评论ID列表
+        List<String> commentIdList = apCommentList.stream().map(ApComment::getId).collect(Collectors.toList());
+
+
+        //3.2 查询点赞记录mongo集合中所有当前用户点赞过的记录
+        List<ApCommentLike> apCommentLikeList = mongoTemplate.find(Query.query(Criteria.where("userId").is(userId) //当前登录用户ID
+                        .and("commentId").in(commentIdList) //评论ID集合
+                        .and("operation").is(0) //类型是点赞
+                )
+                , ApCommentLike.class);
+
+        //3.3 遍历并查找点过过的记录对应的评论数据
+        List<CommentVo> commentVoList = new ArrayList<>();
+        for (ApComment apComment : apCommentList) {
+
+            //带标识的评论数据
+            CommentVo commentVo = new CommentVo();
+            BeanUtils.copyProperties(apComment,commentVo);
+            commentVoList.add(commentVo);
+
+            //用户点赞记录里，如果文章评论列表里，某个评论ID在当前用户点赞记录里出现了，则肯定能查到，count一定大于0，否则就跳过后续步骤执行下一次比较
+            long count = apCommentLikeList.stream().filter(x -> x.getCommentId().equals(apComment.getId())).count();
+            if(count>0){
+                //如果点赞过，那么count>0, 标识下当前评论被点赞过
+                commentVo.setOperation(0);
+            }
+
+        }
+
+        //4.响应最终登录后用户获取到的所有评论数据
+        return ResponseResult.okResult(commentVoList);
     }
 }
