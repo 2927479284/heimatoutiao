@@ -1,6 +1,7 @@
 package com.heima.comment.service.impl;
 
 import com.heima.apis.user.IUserClient;
+import com.heima.comment.service.ApCommentHotService;
 import com.heima.comment.service.ApCommentService;
 import com.heima.model.comment.dtos.CommentDto;
 import com.heima.model.comment.dtos.CommentLikeDto;
@@ -38,6 +39,10 @@ public class ApCommentServiceImpl implements ApCommentService {
 
     @Autowired
     private MongoTemplate mongoTemplate;
+
+
+    @Autowired
+    private ApCommentHotService apCommentHotService;
 
     @Override
     public ResponseResult save(CommentSaveDto dto) {
@@ -149,7 +154,12 @@ public class ApCommentServiceImpl implements ApCommentService {
             apCommentLike.setOperation(dto.getOperation());
             mongoTemplate.save(apCommentLike);
         }
-
+        //当前评论是普通评论且点赞数超过5，那么就提交异步计算热点评论的任务
+        if(dto.getOperation()==0){
+            if(apComment.getFlag()==0 && apComment.getLikes()>5){
+                apCommentHotService.computeHotComment(apComment);
+            }
+        }
         //4.查询评论数据获取点赞数，封装到map
         apComment = mongoTemplate.findById(dto.getCommentId(), ApComment.class);
 

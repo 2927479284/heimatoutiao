@@ -1,14 +1,20 @@
 package com.heima.article.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.heima.article.service.ApArticleService;
 import com.heima.article.service.ArticleHtmlService;
+import com.heima.common.constants.ArticleConstants;
 import com.heima.file.service.FileStorageService;
 import com.heima.model.article.pojos.ApArticle;
+import com.heima.model.search.vos.SearchArticleVo;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
+import org.apache.commons.collections.map.HashedMap;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -64,6 +70,24 @@ public class ArticleHtmlServiceImpl implements ArticleHtmlService {
         apArticleDB.setId(apArticle.getId());//更新条件
         apArticleDB.setStaticUrl(url);//要更新的值
         apArticleService.updateById(apArticleDB);//sql : update ap_article set static_url=? where id=?
+        //5.生成文章数据到KafKa
+        createArticleESIndex(apArticle,content,url);
+    }
 
+    @Autowired
+    private KafkaTemplate<String,String> kafkaTemplate;
+
+    /**
+     * 送消息，创建索引
+     * @param apArticle
+     * @param content
+     * @param url
+     */
+    private void createArticleESIndex(ApArticle apArticle, String content, String url) {
+        SearchArticleVo vo = new SearchArticleVo();
+        BeanUtils.copyProperties(apArticle,vo);
+        vo.setContent(content);
+        vo.setStaticUrl(url);
+        kafkaTemplate.send(ArticleConstants.ARTICLE_ES_SYNC_TOPIC, JSON.toJSONString(vo));
     }
 }

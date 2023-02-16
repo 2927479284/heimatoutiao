@@ -57,4 +57,11 @@
     </select>
 
 
+    <select id="loadSearchArticleList" resultType="com.heima.model.search.vos.SearchArticleVo">
+        select aa.*,aacc.content from ap_article aa
+                                          left join ap_article_config aac on aa.id = aac.article_id
+                                          left join ap_article_content aacc on aa.id = aacc.article_id
+        where aac.is_down=0 and aac.is_delete=0
+    </select>
+
 </mapper>

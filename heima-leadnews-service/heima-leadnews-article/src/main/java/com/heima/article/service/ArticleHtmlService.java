@@ -13,4 +13,5 @@ public interface ArticleHtmlService {
      * @param content
      */
     void generatorHtml(ApArticle apArticle, String content);
+
 }
