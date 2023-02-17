@@ -8,7 +8,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-
+    <description>搜索微服务[ES]</description>
     <artifactId>heima-leadnews-search</artifactId>
 
     <properties>

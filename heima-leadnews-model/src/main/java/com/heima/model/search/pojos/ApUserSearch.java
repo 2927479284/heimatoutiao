@@ -2,6 +2,7 @@ package com.heima.model.search.pojos;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -13,7 +14,7 @@ import java.util.Date;
  * @author itheima
  */
 @Data
-//@Document("ap_user_search")
+@Document("ap_user_search")
 public class ApUserSearch implements Serializable {
 
     private static final long serialVersionUID = 1L;

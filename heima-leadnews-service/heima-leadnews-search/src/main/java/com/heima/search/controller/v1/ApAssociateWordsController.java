@@ -14,11 +14,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/associate")
 public class ApAssociateWordsController {
 
-//      @Autowired
-//    private ApAssociateWordsService apAssociateWordsService;
-//
-//    @PostMapping("/search")
-//    public ResponseResult findAssociate(@RequestBody UserSearchDto dto){
-//        return apAssociateWordsService.search(dto);
-//    }
+      @Autowired
+    private ApAssociateWordsService apAssociateWordsService;
+
+    @PostMapping("/search")
+    public ResponseResult findAssociate(@RequestBody UserSearchDto dto){
+        return apAssociateWordsService.search(dto);
+    }
 }

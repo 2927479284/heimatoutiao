@@ -13,16 +13,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/history")
 public class ApUserSearchController {
 
-//    @Autowired
-//    private ApUserSearchService apUserSearchService;
-//
-//    @PostMapping("/load")
-//    public ResponseResult findUserSearch(){
-//        return apUserSearchService.findUserSearch();
-//    }
-//
-//    @PostMapping("/del")
-//    public ResponseResult delUserSearch(@RequestBody HistorySearchDto dto){
-//        return apUserSearchService.delUserSearch(dto);
-//    }
+    @Autowired
+    private ApUserSearchService apUserSearchService;
+
+    @PostMapping("/load")
+    public ResponseResult findUserSearch(){
+        return apUserSearchService.findUserSearch();
+    }
+
+    @PostMapping("/del")
+    public ResponseResult delUserSearch(@RequestBody HistorySearchDto dto){
+        return apUserSearchService.delUserSearch(dto);
+    }
 }
