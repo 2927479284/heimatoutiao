@@ -28,18 +28,18 @@ public class HelloJob {
         int shardTotal = XxlJobHelper.getShardTotal();
 
         //业务逻辑
-        List<Integer> list = getList();
-        for (Integer integer : list) {
-            if(integer % shardTotal == shardIndex){
-                System.out.println("当前第"+shardIndex+"分片执行了，任务项为："+integer);
+        List<String> list = getList();
+        for (int i = 0; i < list.size(); i++) {
+            if(i % shardTotal == shardIndex){
+                System.out.println(list.get(i));
             }
         }
     }
 
-    public List<Integer> getList(){
-        List<Integer> list = new ArrayList<>();
+    public List<String> getList(){
+        List<String> list = new ArrayList<>();
         for (int i = 0; i < 10000; i++) {
-            list.add(i);
+            list.add("龙王："+i+"号");
         }
         return list;
     }

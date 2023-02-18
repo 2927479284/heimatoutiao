@@ -31,7 +31,7 @@ public class ApArticleController {
     @PostMapping("/load")
     public ResponseResult load(@RequestBody ArticleHomeDto dto) {
         log.info("首次加载文章");
-        return apArticleService.load(dto,ArticleConstants.LOADTYPE_LOAD_MORE);
+        return apArticleService.loadV2(dto,ArticleConstants.LOADTYPE_LOAD_MORE,true);
     }
 
     @PostMapping("/loadmore")

@@ -28,4 +28,8 @@ public interface ApArticleMapper extends BaseMapper<ApArticle> {
      * @return
      */
     List<SearchArticleVo> loadSearchArticleList();
+
+
+
+    List<ApArticle> loadLastDaysArtileList(@Param("beginDateTime") String beginDateTime);
 }

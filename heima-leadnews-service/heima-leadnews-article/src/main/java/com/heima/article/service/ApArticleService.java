@@ -7,6 +7,7 @@ import com.heima.model.article.dtos.ArticleDto;
 import com.heima.model.article.dtos.ArticleHomeDto;
 import com.heima.model.article.pojos.ApArticle;
 import com.heima.model.common.dtos.ResponseResult;
+import org.apache.kafka.common.protocol.types.Field;
 
 /**
  * <p>
@@ -23,6 +24,14 @@ public interface ApArticleService extends IService<ApArticle> {
      * @return
      */
     ResponseResult load(ArticleHomeDto dto, int loadtype);
+
+    /**
+     * 根据参数加载文章列表
+     * @param loadtype 1为加载更多  2为加载最新
+     * @param dto
+     * @return
+     */
+    ResponseResult loadV2(ArticleHomeDto dto, int loadtype, Boolean isFromIndex);
 
 
     /**

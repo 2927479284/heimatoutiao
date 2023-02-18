@@ -64,4 +64,13 @@
         where aac.is_down=0 and aac.is_delete=0
     </select>
 
+
+    <select id="loadLastDaysArtileList" resultType="com.heima.model.article.pojos.ApArticle" parameterType="java.lang.String">
+        SELECT aa.*  from ap_article aa
+                              LEFT JOIN
+                          ap_article_config config
+                          on aa.id = config.article_id
+        where config.is_down!=1 and config.is_delete!=1 and aa.publish_time &gt; #{beginDateTime}
+    </select>
+
 </mapper>
